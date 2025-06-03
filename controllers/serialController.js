@@ -66,7 +66,7 @@ export const serialController = (io, httpServer) => {
     try {
       
       // Verificar que los datos no estén vacíos
-      if (!data || typeof data !== "string") {
+      if (!data || typeof data !== "object") {
         throw new Error("Datos recibidos no válidos.");
       }
 
