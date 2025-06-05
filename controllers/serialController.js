@@ -44,6 +44,10 @@ export const serialController = (io, httpServer) => {
     socket.on('joinPesa', (idPesa) => {
       console.log(`📡 Cliente se unió a la pesa: ${idPesa}`);
       socket.join(idPesa);
+
+      socket.emit('getTara', {
+        tara: (pesaData[idPesa]?.pesoTara ?? 0).toString()
+      });
     });
 
     socket.on("tareWeight", (data) => {
