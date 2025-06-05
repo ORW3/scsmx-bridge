@@ -3,8 +3,7 @@ import { WebSocketServer } from 'ws';
 export const serialController = (io, httpServer) => {
   const wsServer = new WebSocketServer({ noServer: true }); // Puerto del WebSocket para Python
 
-  let pesoTara = 0;
-  let PxP = 0;
+  const pesaData = {}
 
   // Manejar handshake en ruta personalizada
   httpServer.on('upgrade', (req, socket, head) => {
@@ -48,13 +47,23 @@ export const serialController = (io, httpServer) => {
     });
 
     socket.on("tareWeight", (data) => {
-      pesoTara = parseFloat(data.pesoTara);
-      console.log(`Peso Tara recibido: ${pesoTara}`);
+      const { idPesa, pesoTara } = data;
+      if (!idPesa) return;
+
+      pesaData[idPesa] = pesaData[idPesa] || {};
+      pesaData[idPesa].pesoTara = parseFloat(pesoTara);
+
+      console.log(`Peso Tara actualizado para ${idPesa}: ${pesoTara}`);
     });
 
     socket.on("updatePxP", (data) => {
-      PxP = parseFloat(data.PxP) || 0; // Si no se recibe PxP, se usa 0
-      console.log(`Peso por Pieza (PxP) actualizado: ${PxP}`);
+      const { idPesa, PxP } = data;
+      if (!idPesa) return;
+
+      pesaData[idPesa] = pesaData[idPesa] || {};
+      pesaData[idPesa].PxP = parseFloat(PxP) || 0;
+
+      console.log(`PxP actualizado para ${idPesa}: ${PxP}`);
     });
 
     socket.on('disconnect', () => {
@@ -64,39 +73,36 @@ export const serialController = (io, httpServer) => {
 
   const processReceivedData = (data) => {
     try {
-      
+
       // Verificar que los datos no estén vacíos
       if (!data || typeof data !== "object") {
         throw new Error("Datos recibidos no válidos.");
       }
 
       const { idPesa, peso } = data;
+      if (!idPesa) throw new Error("idPesa no proporcionado");
 
-      if (!idPesa) throw new Error("Nombre de pesa vacío.");
-
-      const pesoBruto = parseFloat(peso); // Convertir a número
-
-      console.log(`Peso bruto recibido: ${pesoBruto}`); // Depuración: Verificar el valor
-
-      // Verificar que el valor de peso bruto sea un número válido
-      if (isNaN(pesoBruto)) {
-        throw new Error("Peso bruto no es un número válido.");
-      }
+      const pesoBruto = parseFloat(peso);
+      if (isNaN(pesoBruto)) throw new Error("Peso bruto no válido");
 
       // Verificar que el peso bruto esté dentro del rango esperado
       if (pesoBruto >= 0 && pesoBruto <= 15) {
-        const pesoNeto = pesoBruto - pesoTara; // Calcular peso neto
-        console.log(`Peso Neto: ${pesoNeto}`);
+        const tara = pesaData[idPesa]?.pesoTara || 0;
+        const PxP = pesaData[idPesa]?.PxP || 0;
+
+        const pesoNeto = pesoBruto - tara; // Calcular peso neto
+
+        console.log(`Peso bruto: ${pesoBruto}, Tara: ${tara}, Neto: ${pesoNeto}, PxP: ${PxP}`);
 
         io.to(idPesa).emit('weightData', {
           Brut: pesoBruto.toString(),
           pesoNeto: pesoNeto.toString(),
         });
       } else {
-        console.warn("Valor fuera del rango esperado, ignorando.");
+        console.warn("Peso fuera de rango, ignorando.");
       }
     } catch (ex) {
-      console.error("Error procesando los datos recibidos:", ex);
+      console.error("Error procesando los datos:", ex);
     }
   };
 };
