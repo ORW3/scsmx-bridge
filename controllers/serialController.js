@@ -46,10 +46,6 @@ export const serialController = (io, httpServer) => {
       socket.join(idPesa);
     });
 
-    socket.to(idPesa).emit('getTara', {
-      tara: (pesaData[idPesa] ?? 0).toString()
-    });
-
     socket.on("tareWeight", (data) => {
       const { idPesa, pesoTara } = data;
       if (!idPesa) return;
